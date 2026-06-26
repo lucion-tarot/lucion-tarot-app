@@ -495,7 +495,7 @@ background-size:auto,auto,34px 34px,55px 55px;background-position:center,center,
 
   <section id="admin" class="screen"><div class="screen-head"><button class="back" onclick="backScreen()">← 이전</button><div class="screen-title">관리자</div></div>
     <div id="adminLogin" class="card"><h3>관리자 접속</h3><div class="field"><label>관리자 PIN</label><input id="adminPin" type="password" placeholder="PIN 입력"></div><button class="btn primary" onclick="adminLogin()">접속</button></div>
-    <div id="adminPanel" class="hidden"><div class="card"><h3>충전 관리</h3><p class="muted">회원 이름, 휴대폰 번호, 누적 지급 질문권, 현재 남은 질문권만 확인합니다.</p><button class="btn" onclick="loadAdmin()">새로고침</button></div><div id="adminUsage"></div><div id="adminList"></div></div>
+    <div id="adminPanel" class="hidden"><div class="card" id="adminPinChangeCard"><h3>🔒 관리자 PIN 변경</h3><p class="muted">초기 PIN은 0000입니다. 운영 전 반드시 나만 아는 PIN으로 변경하세요.</p><div class="field"><label>현재 PIN</label><input id="curAdminPin" type="password" inputmode="numeric" placeholder="현재 PIN"></div><div class="field"><label>새 PIN</label><input id="newAdminPin" type="password" inputmode="numeric" placeholder="새 PIN 4자리 이상"></div><div class="field"><label>새 PIN 확인</label><input id="newAdminPin2" type="password" inputmode="numeric" placeholder="새 PIN 다시 입력"></div><button class="btn primary" onclick="changeAdminPin()">PIN 변경하기</button></div><div class="card"><h3>충전 관리</h3><p class="muted">회원 이름, 휴대폰 번호, 누적 지급 질문권, 현재 남은 질문권만 확인합니다.</p><button class="btn" onclick="loadAdmin()">새로고침</button></div><div id="adminUsage"></div><div id="adminList"></div></div>
   </section>
 </div>
 <a class="fab" href="https://open.kakao.com/o/gBiUj9Ai" target="_blank">💬 문의하기</a>
@@ -1076,7 +1076,26 @@ async function loadApiUsage(){
   box.innerHTML=`<div class="card"><h3>API 예상 사용량</h3><p class="muted">베타 운영용 예상치입니다. 실제 OpenAI 청구액은 OpenAI Billing 화면에서 최종 확인하세요.</p><div class="api-meter"><span style="width:${pct}%"></span></div><div class="api-stat"><div><small>예상 사용액</small><b>$${cost.toFixed(2)} / $${API_BUDGET_USD.toFixed(2)}</b></div><div><small>예상 잔액</small><b>$${remain.toFixed(2)}</b></div><div><small>누적 질문</small><b>${total}건</b></div><div><small>무료 / 유료</small><b>${free} / ${paid}건</b></div></div><p class="muted" style="margin-top:9px">질문 1건 평균 예상 비용: 약 $${avg.toFixed(3)} · 10달러 기준 예상 가능 질문 수: 약 ${Math.floor(API_BUDGET_USD/(avg||API_EST_COST_PER_READING))}건</p><button class="btn" style="margin-top:10px" onclick="loadApiUsage()">사용량 새로고침</button><button class="btn ghost" style="margin-top:8px" onclick="resetApiUsage()">예상 사용량 초기화</button></div>`;
 }
 
-function adminLogin(){if(document.getElementById('adminPin').value!==ADMIN_PIN)return alert('PIN이 맞지 않습니다.');document.getElementById('adminLogin').classList.add('hidden');document.getElementById('adminPanel').classList.remove('hidden');loadAdmin();}
+function getAdminPin(){return localStorage.getItem('lucionAdminPin')||ADMIN_PIN||'0000';}
+function adminLogin(){
+  const pin=(document.getElementById('adminPin').value||'').trim();
+  if(pin!==getAdminPin())return alert('PIN이 맞지 않습니다.');
+  document.getElementById('adminLogin').classList.add('hidden');
+  document.getElementById('adminPanel').classList.remove('hidden');
+  loadAdmin();
+}
+function changeAdminPin(){
+  const cur=(document.getElementById('curAdminPin')?.value||'').trim();
+  const np=(document.getElementById('newAdminPin')?.value||'').trim();
+  const np2=(document.getElementById('newAdminPin2')?.value||'').trim();
+  if(cur!==getAdminPin())return alert('현재 PIN이 맞지 않습니다.');
+  if(np.length<4)return alert('새 PIN은 4자리 이상으로 설정해주세요.');
+  if(np!==np2)return alert('새 PIN 확인이 일치하지 않습니다.');
+  localStorage.setItem('lucionAdminPin',np);
+  ['adminPin','curAdminPin','newAdminPin','newAdminPin2'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
+  alert('관리자 PIN이 변경되었습니다. 다음 접속부터 새 PIN을 사용하세요.');
+}
+
 async function loadAdmin(){
   loadApiUsage();
   const users=await fbGet('/users')||{};const box=document.getElementById('adminList');
@@ -1084,15 +1103,25 @@ async function loadAdmin(){
   Object.entries(users).forEach(([k,u])=>{
     const phone=cleanPhone(u.phone||k); const name=(u.name||u.depositor||'').trim();
     if(!phone||!name)return;
-    if(Number(u.credits||0)<=0&&Number(u.issued||0)<=0)return;
-    const cur={key:phone,name,phone,maskedName:maskName(name),maskedPhone:maskPhone(phone),credits:Number(u.credits||0),issued:Number(u.issued||0),updatedAt:u.updatedAt||0};
+    // 로그인한 회원은 충전 여부와 관계없이 관리자 목록에 바로 표시합니다.
+    // 그래야 무료 1회만 사용한 고객도 입금 후 즉시 질문권을 지급할 수 있습니다.
+    const cur={
+      key:phone,name,phone,
+      maskedName:maskName(name),maskedPhone:maskPhone(phone),
+      credits:Number(u.credits||0),issued:Number(u.issued||0),
+      freeUsed:!!u.freeUsed,updatedAt:u.updatedAt||0
+    };
     const old=map[phone];
-    if(!old||cur.credits>old.credits||cur.updatedAt>old.updatedAt)map[phone]=cur;
+    if(!old||cur.updatedAt>old.updatedAt)map[phone]=cur;
   });
-  let rows=Object.values(map).filter(u=>Number(u.credits||0)>0).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  if(!rows.length){box.innerHTML='<div class="card"><p class="muted">현재 질문권을 보유한 회원이 없습니다.</p></div>';return}
-  let html='<div class="card"><h3>현재 질문권 보유 회원</h3><p class="muted">회원 이름, 휴대폰 번호, 누적 지급 질문권, 현재 남은 질문권만 확인합니다.</p></div>';
-  rows.forEach(u=>{html+=`<div class="admin-row"><b>${u.maskedName} / ${u.maskedPhone}</b><p>누적 지급 ${Number(u.issued||0)}개 · 현재 ${Number(u.credits||0)}개 남음</p><div class="row"><button class="btn" onclick="manualGive('${u.key}',1)">+1개 지급</button><button class="btn" onclick="manualGive('${u.key}',3)">+3개 지급</button><button class="btn" onclick="manualGive('${u.key}',5)">+5개 지급</button></div></div>`});
+  let rows=Object.values(map).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  if(!rows.length){box.innerHTML='<div class="card"><p class="muted">아직 로그인한 회원이 없습니다.</p></div>';return}
+  let html='<div class="card"><h3>전체 로그인 회원</h3><p class="muted">로그인한 회원은 충전 전이라도 자동 등록됩니다. 입금 확인 후 해당 회원에게 질문권을 지급하세요.</p></div>';
+  rows.forEach(u=>{
+    const credits=Number(u.credits||0), issued=Number(u.issued||0);
+    const status=credits>0?'질문권 보유':(u.freeUsed?'무료 1회 사용 완료':'무료 1회 가능');
+    html+=`<div class="admin-row"><b>${u.maskedName} / ${u.maskedPhone}</b><p>상태: ${status} · 누적 지급 ${issued}개 · 현재 ${credits}개 남음</p><div class="row"><button class="btn" onclick="manualGive('${u.key}',5)">+5개 지급</button><button class="btn" onclick="manualGive('${u.key}',10)">+10개 지급</button><button class="btn" onclick="manualGive('${u.key}',20)">+20개 지급</button></div></div>`
+  });
   box.innerHTML=html;
 }
 async function approveCharge(reqId,key,credits){await manualGive(key,credits,true);await fbPatch('/chargeRequests/'+reqId,{status:'지급완료',approvedAt:Date.now()});}
