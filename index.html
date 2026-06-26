@@ -470,7 +470,7 @@ background-size:auto,auto,34px 34px,55px 55px;background-position:center,center,
   <section id="ask" class="screen"><div class="screen-head"><button class="back" onclick="backScreen()">← 이전</button><div class="screen-title">카드 선택과 질문</div></div>
     <div class="card"><h3>리딩 스타일 선택</h3><div class="style-grid" id="styleGrid"></div></div>
     <div class="card spread-panel"><h3>마음의 질문을 생각하고 카드를 선택하세요</h3><p class="muted">78장의 카드가 실제 상담처럼 부채꼴로 펼쳐집니다. 카드 이름은 선택 전에는 보이지 않고, 리딩 결과에서만 공개됩니다. <span class="progress" id="pickCount">0/5</span></p><div class="fan-guide">✨ <b>선택 방법</b> : 끌리는 카드를 터치하면 아래 5개의 자리로 채워집니다.</div><div class="shuffle-row"><button class="btn" type="button" onclick="shuffleChoiceDeck()">🔀 78장 다시 섞기</button><span class="shuffle-hint">섞은 뒤 끌리는 카드 5장을 고르세요.</span></div><div class="deck fan-table" id="deck"></div><div class="selection-slots" id="selectionSlots"></div></div>
-    <div class="card"><h3>질문을 남겨주세요</h3><textarea id="question" placeholder="예: 그 사람 속마음이 궁금합니다. 재회 가능성이 있을까요?"></textarea><div class="voice-row"><button type="button" id="voiceBtn" class="btn mic" onclick="toggleVoiceQuestion()">🎙 음성으로 질문하기</button><button type="button" class="btn ghost" onclick="clearQuestionText()">지우기</button></div><p id="voiceStatus" class="voice-status">마이크 버튼을 누르고 질문을 말하면 자동으로 입력됩니다.</p><button id="readBtn" class="btn primary" style="margin-top:10px" onclick="startReading()" disabled>5장 선택 후 리딩 시작</button><p id="askNotice" class="muted" style="margin-top:8px"></p></div>
+    <div class="card"><h3>질문을 남겨주세요</h3><textarea id="question" placeholder="예: 그 사람 속마음이 궁금합니다. 재회 가능성이 있을까요?"></textarea><div class="grid" style="margin-top:10px"><button type="button" class="btn ghost" onclick="clearQuestionText()">질문 지우기</button></div><button id="readBtn" class="btn primary" style="margin-top:10px" onclick="startReading()" disabled>5장 선택 후 리딩 시작</button><p id="askNotice" class="muted" style="margin-top:8px"></p></div>
   </section>
 
   <section id="reading" class="screen"><div class="screen-head"><button class="back" onclick="backScreen()">← 이전</button><div class="screen-title">AI 타로 리딩</div></div>
@@ -1866,6 +1866,151 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.use
   };
   window.addEventListener('load',()=>{try{window.updatePickUI&&window.updatePickUI();}catch(e){}});
 })();
+
+
+/* ===== V11.7 VOICE REMOVED: text-only stable beta ===== */
+(function(){
+  let mediaStream=null;
+  let mediaRecorder=null;
+  let voiceChunks=[];
+  let isRecording=false;
+  const $=(id)=>document.getElementById(id);
+
+  function setStatus(msg, active=false){
+    const st=$('voiceStatus');
+    const btn=$('voiceBtn');
+    if(st){
+      st.innerHTML = active ? `${msg}<div class="voice-meter"><i></i></div>` : msg;
+      st.classList.toggle('active', !!active);
+    }
+    if(btn){
+      btn.disabled=false;
+      btn.classList.toggle('listening', !!active);
+      btn.textContent = active ? '● 녹음 중 · 다시 누르면 입력' : '🎙 음성으로 질문하기';
+    }
+  }
+
+  function pickMime(){
+    const types=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+    if(!window.MediaRecorder) return '';
+    return types.find(t=>MediaRecorder.isTypeSupported(t)) || '';
+  }
+
+  function blobToDataURL(blob){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function stopAndTranscribe(){
+    return new Promise((resolve)=>{
+      if(!mediaRecorder || mediaRecorder.state==='inactive') return resolve();
+      mediaRecorder.onstop=async()=>{
+        try{
+          setStatus('음성을 글자로 변환하고 있습니다. 잠시만 기다려 주세요.', true);
+          const mime=mediaRecorder.mimeType || 'audio/webm';
+          const blob=new Blob(voiceChunks,{type:mime});
+          voiceChunks=[];
+          if(blob.size < 800){
+            setStatus('녹음된 음성이 너무 짧습니다. 버튼을 누르고 질문을 조금 더 길게 말해 주세요.', false);
+            return resolve();
+          }
+          const audioBase64=await blobToDataURL(blob);
+          const r=await fetch('/api/transcribe',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({audioBase64,mime})
+          });
+          const data=await r.json().catch(()=>({}));
+          if(!r.ok || !data.ok){
+            setStatus((data && data.error) ? data.error : '음성 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.', false);
+            return resolve();
+          }
+          const q=$('question');
+          const text=String(data.text||'').trim();
+          if(q && text){
+            q.value = q.value.trim() ? (q.value.trim()+' '+text) : text;
+            q.dispatchEvent(new Event('input',{bubbles:true}));
+            q.focus();
+            setStatus('음성 질문이 입력되었습니다. 문장을 확인한 뒤 리딩을 시작하세요.', false);
+          }else{
+            setStatus('음성을 글자로 변환하지 못했습니다. 다시 한번 또렷하게 말씀해 주세요.', false);
+          }
+        }catch(e){
+          setStatus('음성 입력 처리 중 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.', false);
+        }finally{
+          try{mediaStream && mediaStream.getTracks().forEach(t=>t.stop());}catch(e){}
+          mediaStream=null; mediaRecorder=null; isRecording=false;
+          resolve();
+        }
+      };
+      try{mediaRecorder.stop();}catch(e){resolve();}
+    });
+  }
+
+  window.setVoiceStatus=setStatus;
+  window.clearQuestionText=function(){
+    const q=$('question');
+    if(q){q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); q.focus();}
+    setStatus('질문이 비워졌습니다. 마이크 버튼을 누르고 다시 말해 주세요.', false);
+  };
+
+  window.toggleVoiceQuestion=async function(){
+    try{ if(window.unlockLucionAudio) window.unlockLucionAudio(); }catch(e){}
+    if(isRecording){
+      isRecording=false;
+      await stopAndTranscribe();
+      return;
+    }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+      setStatus('이 브라우저는 녹음 기능을 지원하지 않습니다. Chrome 또는 삼성 인터넷 최신 버전에서 사용해 주세요.', false);
+      return;
+    }
+    try{
+      setStatus('마이크를 여는 중입니다. 권한 창이 뜨면 허용을 눌러 주세요.', true);
+      mediaStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mime=pickMime();
+      mediaRecorder=new MediaRecorder(mediaStream, mime ? {mimeType:mime} : undefined);
+      voiceChunks=[];
+      mediaRecorder.ondataavailable=(e)=>{ if(e.data && e.data.size>0) voiceChunks.push(e.data); };
+      mediaRecorder.onerror=()=>{ setStatus('녹음 중 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.', false); };
+      mediaRecorder.start();
+      isRecording=true;
+      setStatus('녹음 중입니다. 질문을 말한 뒤 버튼을 다시 눌러 입력하세요.', true);
+      setTimeout(()=>{
+        if(isRecording){ stopAndTranscribe(); isRecording=false; }
+      }, 45000);
+    }catch(e){
+      isRecording=false;
+      try{mediaStream && mediaStream.getTracks().forEach(t=>t.stop());}catch(_e){}
+      mediaStream=null;
+      let msg='마이크를 열지 못했습니다. 브라우저 권한을 확인한 뒤 다시 눌러 주세요.';
+      if(e && (e.name==='NotAllowedError' || e.name==='SecurityError')) msg='마이크 권한이 차단되었습니다. 사이트 권한에서 마이크 허용 후 새로고침해 주세요.';
+      if(e && e.name==='NotFoundError') msg='사용 가능한 마이크를 찾지 못했습니다.';
+      setStatus(msg, false);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const btn=$('voiceBtn');
+    if(btn){ btn.disabled=false; btn.textContent='🎙 음성으로 질문하기'; }
+    const st=$('voiceStatus');
+    if(st && /권한|차단|지원하지/.test(st.textContent||'')){
+      setStatus('마이크 버튼을 누르고 질문을 말하면 자동으로 입력됩니다.', false);
+    }
+  });
+})();
+
 </script>
 
 </body></html>
+
+<script>
+/* V11.7: 음성 입력 기능 완전 비활성화 */
+window.toggleVoiceQuestion=function(){return false};
+window.clearQuestionText=window.clearQuestionText||function(){const q=document.getElementById('question'); if(q) q.value='';};
+window.addEventListener('load',()=>{document.querySelectorAll('#voiceBtn,#voiceStatus,.voice-row,.voice-meter').forEach(el=>el.remove());});
+</script>
