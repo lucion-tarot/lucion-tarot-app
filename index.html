@@ -10,6 +10,8 @@
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}.brand{display:flex;align-items:center;gap:11px}.logo{width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#2a1055,var(--purple),var(--gold));display:grid;place-items:center;color:#fff;font-size:27px;box-shadow:var(--shadow)}.brand h1{font-size:23px;letter-spacing:-.4px}.brand p{font-size:12px;color:var(--muted);margin-top:2px}.pill{display:inline-flex;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted);box-shadow:0 8px 20px rgba(0,0,0,.04);white-space:nowrap}
 .screen-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}.back{border:0;background:#fff;border:1px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.04);border-radius:999px;padding:9px 13px;font-weight:900;color:var(--purple);font-family:inherit}.screen-title{font-size:21px;font-weight:1000}
 .main-visual,.ad-img{position:relative;overflow:hidden;border-radius:26px;box-shadow:var(--shadow);border:1px solid rgba(148,92,215,.22);background:#fff;margin:0 0 13px;cursor:pointer}.main-visual img,.ad-img img{display:block;width:100%;height:auto}.visual-hotspot{position:absolute;border:0;background:rgba(255,255,255,0);cursor:pointer;border-radius:14px}.visual-hotspot:active{background:rgba(106,53,216,.08)}.hot-love{left:6%;top:42%;width:22%;height:14%}.hot-human{left:28%;top:42%;width:22%;height:14%}.hot-work{left:50%;top:42%;width:22%;height:14%}.hot-total{left:72%;top:42%;width:22%;height:14%}.hot-cta{left:5%;bottom:3%;width:90%;height:9%}.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:var(--shadow);margin:12px 0}.card h3{font-size:18px;margin-bottom:8px}.muted{color:var(--muted);font-size:13px;line-height:1.6}.copybox{background:linear-gradient(135deg,#fff,#fbf6ff);border:1px solid #e7d8ff;border-radius:22px;padding:17px;box-shadow:var(--shadow);margin:12px 0}.copybox h2{font-size:24px;line-height:1.28;letter-spacing:-.5px;margin-bottom:10px}.copybox p{font-size:14px;line-height:1.72;color:#4b3c5b}.highlight{color:var(--purple);font-weight:1000}.notice{background:#fff9ed;border:1px solid #efd8a7;border-radius:18px;padding:13px 14px;color:#6b4b11;font-size:13px;line-height:1.55}.warn{background:#fff4f4;border-color:#ffd9d9;color:#8a2424}.ok{background:#effcf6;border-color:#c8f0df;color:#106b4d}
+.api-meter{margin-top:10px;background:#f6eeff;border-radius:999px;height:13px;overflow:hidden;border:1px solid #eadff0}.api-meter span{display:block;height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));width:0%}.api-stat{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.api-stat div{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px}.api-stat b{display:block;font-size:18px;color:var(--purple);margin-top:4px}.api-stat small{font-size:11px;color:var(--muted)}
+
 .field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:900;margin-bottom:7px;color:#4b3a58}input,textarea,select{width:100%;border:1px solid #ded2ea;border-radius:16px;padding:14px 15px;font:inherit;background:#fff;color:var(--ink);outline:none}textarea{min-height:124px;resize:vertical;line-height:1.55}input:focus,textarea:focus,select:focus{border-color:var(--purple);box-shadow:0 0 0 4px rgba(106,53,216,.10)}.btn{width:100%;border:none;border-radius:18px;padding:15px 14px;font-weight:1000;font-size:15px;cursor:pointer;font-family:inherit;transition:.12s;background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 10px 25px rgba(0,0,0,.04)}.btn:active{transform:scale(.985)}.btn.primary{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border-color:transparent}.btn.gold{background:linear-gradient(135deg,#f1d37f,var(--gold));color:#352406;border-color:transparent}.btn.kakao{background:#fee500;color:#251b00;border-color:#ecd700}.btn.ghost{background:transparent;box-shadow:none}.btn.red{background:#fff2f2;color:var(--red);border-color:#ffd4d4}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
 /* V11-11 첫 질문 1회 무료 안내 + 로그인/충전 흐름 정리 */
 .compact-hero{height:245px;margin-bottom:12px;border-radius:28px;background:linear-gradient(135deg,#140925,#2f135e 48%,#8b5be8);}
@@ -492,7 +494,7 @@ background-size:auto,auto,34px 34px,55px 55px;background-position:center,center,
 
   <section id="admin" class="screen"><div class="screen-head"><button class="back" onclick="backScreen()">← 이전</button><div class="screen-title">관리자</div></div>
     <div id="adminLogin" class="card"><h3>관리자 접속</h3><div class="field"><label>관리자 PIN</label><input id="adminPin" type="password" placeholder="PIN 입력"></div><button class="btn primary" onclick="adminLogin()">접속</button></div>
-    <div id="adminPanel" class="hidden"><div class="card"><h3>충전 관리</h3><p class="muted">회원 이름, 휴대폰 번호, 누적 지급 질문권, 현재 남은 질문권만 확인합니다.</p><button class="btn" onclick="loadAdmin()">새로고침</button></div><div id="adminList"></div></div>
+    <div id="adminPanel" class="hidden"><div class="card"><h3>충전 관리</h3><p class="muted">회원 이름, 휴대폰 번호, 누적 지급 질문권, 현재 남은 질문권만 확인합니다.</p><button class="btn" onclick="loadAdmin()">새로고침</button></div><div id="adminUsage"></div><div id="adminList"></div></div>
   </section>
 </div>
 <a class="fab" href="https://open.kakao.com/o/gBiUj9Ai" target="_blank">💬 문의하기</a>
@@ -883,7 +885,7 @@ function cardArt(name){
 function finishReading(q,isFree){const cards=selected.map(c=>({name:c,rev:Math.random()<.42,meaning:MEAN[c]||basicMeaning(c)}));const topics=detectTopics(q);const topic=topics[0]||'종합';const autoLabel=topicLabel(topics);const body=makeReading(q,cards,selectedStyle,topics);const txt=`📌 AI가 질문을 분석한 결과 ${autoLabel} 분야로 자동 판단하여 리딩을 진행했습니다.
 선택한 리딩 스타일: ${selectedStyle}
 
-`+enrichReadingTo2000(body,topic,cards);document.getElementById('chosenCards').innerHTML=cards.map(c=>cardView(c)).join('');document.getElementById('resultText').textContent=txt;document.getElementById('readingLoading').classList.add('hidden');document.getElementById('readingResult').classList.remove('hidden');const rec={id:Date.now(),q,style:selectedStyle,topic:topics,cards,txt,free:isFree,date:new Date().toLocaleString('ko-KR')};currentReading=rec;state.history.unshift(rec);trimHistoryToTen();saveLocal();fbSet('/readings/'+state.userKey+'/'+rec.id,rec);cleanupRemoteReadings();selected=[];}
+`+enrichReadingTo2000(body,topic,cards);document.getElementById('chosenCards').innerHTML=cards.map(c=>cardView(c)).join('');document.getElementById('resultText').textContent=txt;document.getElementById('readingLoading').classList.add('hidden');document.getElementById('readingResult').classList.remove('hidden');const rec={id:Date.now(),q,style:selectedStyle,topic:topics,cards,txt,free:isFree,date:new Date().toLocaleString('ko-KR')};currentReading=rec;state.history.unshift(rec);trimHistoryToTen();saveLocal();fbSet('/readings/'+state.userKey+'/'+rec.id,rec);cleanupRemoteReadings();recordApiUsage(txt.length,isFree);selected=[];}
 function basicMeaning(c){if(c.includes('컵'))return '감정과 관계의 흐름';if(c.includes('완드'))return '행동과 의지의 방향';if(c.includes('소드'))return '생각과 갈등의 정리';if(c.includes('펜타클'))return '현실과 조건의 변화';return '상황의 핵심 흐름'}
 function detectTopics(q){
   q=(q||'').replace(/\s+/g,' ');
@@ -1033,8 +1035,49 @@ function sendCurrentReadingSms(){
   location.href=`sms:${phone}${sep}body=${body}`;
 }
 function openHistory(i){const h=state.history[i];if(!h)return;document.getElementById('historyDetailBox').innerHTML=`<div class="card"><h3>질문</h3><p>${h.q}</p><p class="muted" style="margin-top:8px">${h.date} · ${h.style||''}</p></div><div class="card"><h3>선택 카드</h3><div class="chosen">${(h.cards||[]).map(c=>cardView(c)).join('')}</div></div><div class="card"><h3>리딩 전체 내용</h3><div class="result">${h.txt}</div></div><div class="grid"><button class="btn primary" onclick="sendHistorySms(${i})">📩 내 번호로 문자 받기</button></div><button class="btn primary" style="margin-top:10px" onclick="go('ask')">새 질문하기</button>`;go('historyDetail')}
+
+const API_BUDGET_USD=10;
+const API_EST_COST_PER_READING=0.03;
+function apiUsageLocal(){try{return JSON.parse(localStorage.getItem('lucionApiUsage')||'{}')}catch(e){return {}}}
+function saveApiUsageLocal(u){localStorage.setItem('lucionApiUsage',JSON.stringify(u||{}));}
+function estimateApiCost(chars){
+  // 베타 운영용 예상치입니다. 실제 OpenAI 청구액과는 차이가 날 수 있습니다.
+  const len=Number(chars||0);
+  if(len>4500)return 0.05;
+  if(len>3000)return 0.04;
+  return API_EST_COST_PER_READING;
+}
+async function recordApiUsage(chars,isFree){
+  const add=estimateApiCost(chars);
+  const now=Date.now();
+  let u=await fbGet('/usage/api');
+  if(!u)u=apiUsageLocal();
+  u.totalReadings=Number(u.totalReadings||0)+1;
+  u.freeReadings=Number(u.freeReadings||0)+(isFree?1:0);
+  u.paidReadings=Number(u.paidReadings||0)+(isFree?0:1);
+  u.estimatedCost=Number(u.estimatedCost||0)+add;
+  u.updatedAt=now;
+  saveApiUsageLocal(u);
+  try{await fbSet('/usage/api',u)}catch(e){}
+}
+async function resetApiUsage(){
+  if(!confirm('API 예상 사용량을 0으로 초기화할까요?\nOpenAI 실제 사용량이 아니라 앱 내부 예상치만 초기화됩니다.'))return;
+  const u={totalReadings:0,freeReadings:0,paidReadings:0,estimatedCost:0,updatedAt:Date.now()};
+  saveApiUsageLocal(u); await fbSet('/usage/api',u); loadAdmin();
+}
+async function loadApiUsage(){
+  const box=document.getElementById('adminUsage'); if(!box)return;
+  let u=await fbGet('/usage/api'); if(!u)u=apiUsageLocal();
+  const total=Number(u.totalReadings||0), free=Number(u.freeReadings||0), paid=Number(u.paidReadings||0);
+  const cost=Number(u.estimatedCost||0); const remain=Math.max(0,API_BUDGET_USD-cost);
+  const pct=Math.min(100,Math.round((cost/API_BUDGET_USD)*100));
+  const avg=total?cost/total:API_EST_COST_PER_READING;
+  box.innerHTML=`<div class="card"><h3>API 예상 사용량</h3><p class="muted">베타 운영용 예상치입니다. 실제 OpenAI 청구액은 OpenAI Billing 화면에서 최종 확인하세요.</p><div class="api-meter"><span style="width:${pct}%"></span></div><div class="api-stat"><div><small>예상 사용액</small><b>$${cost.toFixed(2)} / $${API_BUDGET_USD.toFixed(2)}</b></div><div><small>예상 잔액</small><b>$${remain.toFixed(2)}</b></div><div><small>누적 질문</small><b>${total}건</b></div><div><small>무료 / 유료</small><b>${free} / ${paid}건</b></div></div><p class="muted" style="margin-top:9px">질문 1건 평균 예상 비용: 약 $${avg.toFixed(3)} · 10달러 기준 예상 가능 질문 수: 약 ${Math.floor(API_BUDGET_USD/(avg||API_EST_COST_PER_READING))}건</p><button class="btn" style="margin-top:10px" onclick="loadApiUsage()">사용량 새로고침</button><button class="btn ghost" style="margin-top:8px" onclick="resetApiUsage()">예상 사용량 초기화</button></div>`;
+}
+
 function adminLogin(){if(document.getElementById('adminPin').value!==ADMIN_PIN)return alert('PIN이 맞지 않습니다.');document.getElementById('adminLogin').classList.add('hidden');document.getElementById('adminPanel').classList.remove('hidden');loadAdmin();}
 async function loadAdmin(){
+  loadApiUsage();
   const users=await fbGet('/users')||{};const box=document.getElementById('adminList');
   const map={};
   Object.entries(users).forEach(([k,u])=>{
