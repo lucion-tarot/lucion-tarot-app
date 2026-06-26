@@ -470,7 +470,7 @@ background-size:auto,auto,34px 34px,55px 55px;background-position:center,center,
   </section>
 
   <section id="ask" class="screen"><div class="screen-head"><button class="back" onclick="backScreen()">← 이전</button><div class="screen-title">카드 선택과 질문</div></div>
-    <div class="card"><h3>리딩 스타일 선택</h3><div class="style-grid" id="styleGrid"></div></div>
+    <div class="card"><h3>리딩 스타일 선택</h3><p class="muted">질문의 분야는 AI가 자동으로 판단합니다. 여기서는 답변의 분위기만 선택하세요.</p><div class="style-grid" id="styleGrid"></div></div>
     <div class="card spread-panel"><h3>마음의 질문을 생각하고 카드를 선택하세요</h3><p class="muted">78장의 카드가 실제 상담처럼 부채꼴로 펼쳐집니다. 카드 이름은 선택 전에는 보이지 않고, 리딩 결과에서만 공개됩니다. <span class="progress" id="pickCount">0/5</span></p><div class="fan-guide">✨ <b>선택 방법</b> : 끌리는 카드를 터치하면 아래 5개의 자리로 채워집니다.</div><div class="shuffle-row"><button class="btn" type="button" onclick="shuffleChoiceDeck()">🔀 78장 다시 섞기</button><span class="shuffle-hint">섞은 뒤 끌리는 카드 5장을 고르세요.</span></div><div class="deck fan-table" id="deck"></div><div class="selection-slots" id="selectionSlots"></div></div>
     <div class="card"><h3>질문을 남겨주세요</h3><textarea id="question" placeholder="예: 그 사람 속마음이 궁금합니다. 재회 가능성이 있을까요?"></textarea><div class="grid" style="margin-top:10px"><button type="button" class="btn ghost" onclick="clearQuestionText()">질문 지우기</button></div><button id="readBtn" class="btn primary" style="margin-top:10px" onclick="startReading()" disabled>5장 선택 후 리딩 시작</button><p id="askNotice" class="muted" style="margin-top:8px"></p></div>
   </section>
@@ -505,7 +505,7 @@ const FIREBASE_URL='https://lucion-tarot-2026-b869a-default-rtdb.firebaseio.com'
 const CONTACT_URL='https://open.kakao.com/o/gBiUj9Ai';
 const ADMIN_PIN='0000';
 const PRODUCTS=[{credits:1,price:2000},{credits:3,price:5000},{credits:5,price:8000},{credits:10,price:15000}];
-const STYLES=['❤️ 연애 심리','💔 재회','👥 인간관계','💰 금전운','💼 직장·이직','🌙 종합운','🔮 루시온 신점 스타일'];
+const STYLES=['❤️ 심리 중심','🔮 신점 스타일','💡 현실 조언 중심','🌙 직관 리딩'];
 const CARDS=['바보','마법사','여사제','여황제','황제','교황','연인','전차','힘','은둔자','운명의 바퀴','정의','매달린 사람','죽음','절제','악마','탑','별','달','태양','심판','세계','완드 에이스','완드 2','완드 3','완드 4','완드 5','완드 6','완드 7','완드 8','완드 9','완드 10','완드 시종','완드 기사','완드 여왕','완드 왕','컵 에이스','컵 2','컵 3','컵 4','컵 5','컵 6','컵 7','컵 8','컵 9','컵 10','컵 시종','컵 기사','컵 여왕','컵 왕','소드 에이스','소드 2','소드 3','소드 4','소드 5','소드 6','소드 7','소드 8','소드 9','소드 10','소드 시종','소드 기사','소드 여왕','소드 왕','펜타클 에이스','펜타클 2','펜타클 3','펜타클 4','펜타클 5','펜타클 6','펜타클 7','펜타클 8','펜타클 9','펜타클 10','펜타클 시종','펜타클 기사','펜타클 여왕','펜타클 왕'];
 const MEAN={'바보':'새로운 시작과 불확실성','마법사':'의지와 실행력','여사제':'숨겨진 마음과 직감','여황제':'호감과 풍요','황제':'통제와 책임','교황':'기준과 조언','연인':'끌림과 선택','전차':'전진과 결단','힘':'인내와 부드러운 힘','은둔자':'거리두기와 숙고','운명의 바퀴':'흐름의 변화','정의':'균형과 판단','매달린 사람':'기다림과 관점 전환','죽음':'정리와 전환','절제':'조율과 회복','악마':'집착과 유혹','탑':'예상 밖의 변화','별':'희망과 회복','달':'불안과 모호함','태양':'긍정과 드러남','심판':'재평가와 연락','세계':'완성과 결실','컵 2':'호감과 교감','컵 5':'아쉬움과 후회','컵 6':'익숙함과 과거 감정','컵 8':'감정적 거리','완드 7':'방어와 선 긋기','완드 8':'빠른 소식','소드 2':'갈등 회피','소드 3':'상처와 실망','소드 7':'숨김과 계산','펜타클 4':'움켜쥠과 신중함','펜타클 8':'현실적인 노력','펜타클 10':'안정과 결과'};
 let state={name:'',phone:'',userKey:'',credits:0,freeUsed:false,history:[],issued:0};
@@ -881,19 +881,40 @@ function cardArt(name){
   </svg></div>`;
 }
 
-function finishReading(q,isFree){const cards=selected.map(c=>({name:c,rev:Math.random()<.42,meaning:MEAN[c]||basicMeaning(c)}));const topic=detectTopic(q,selectedStyle);const txt=enrichReadingTo2000(makeReading(q,cards,selectedStyle),topic,cards);document.getElementById('chosenCards').innerHTML=cards.map(c=>cardView(c)).join('');document.getElementById('resultText').textContent=txt;document.getElementById('readingLoading').classList.add('hidden');document.getElementById('readingResult').classList.remove('hidden');const rec={id:Date.now(),q,style:selectedStyle,cards,txt,free:isFree,date:new Date().toLocaleString('ko-KR')};currentReading=rec;state.history.unshift(rec);trimHistoryToTen();saveLocal();fbSet('/readings/'+state.userKey+'/'+rec.id,rec);cleanupRemoteReadings();selected=[];}
+function finishReading(q,isFree){const cards=selected.map(c=>({name:c,rev:Math.random()<.42,meaning:MEAN[c]||basicMeaning(c)}));const topics=detectTopics(q);const topic=topics[0]||'종합';const autoLabel=topicLabel(topics);const body=makeReading(q,cards,selectedStyle,topics);const txt=`📌 AI가 질문을 분석한 결과 ${autoLabel} 분야로 자동 판단하여 리딩을 진행했습니다.
+선택한 리딩 스타일: ${selectedStyle}
+
+`+enrichReadingTo2000(body,topic,cards);document.getElementById('chosenCards').innerHTML=cards.map(c=>cardView(c)).join('');document.getElementById('resultText').textContent=txt;document.getElementById('readingLoading').classList.add('hidden');document.getElementById('readingResult').classList.remove('hidden');const rec={id:Date.now(),q,style:selectedStyle,topic:topics,cards,txt,free:isFree,date:new Date().toLocaleString('ko-KR')};currentReading=rec;state.history.unshift(rec);trimHistoryToTen();saveLocal();fbSet('/readings/'+state.userKey+'/'+rec.id,rec);cleanupRemoteReadings();selected=[];}
 function basicMeaning(c){if(c.includes('컵'))return '감정과 관계의 흐름';if(c.includes('완드'))return '행동과 의지의 방향';if(c.includes('소드'))return '생각과 갈등의 정리';if(c.includes('펜타클'))return '현실과 조건의 변화';return '상황의 핵심 흐름'}
-function detectTopic(q,style){
-  if(/재회|헤어|전남|전여|다시|이별/.test(q))return '재회';
-  if(/속마음|그 사람|상대|남자|여자|연애|호감|썸|사랑/.test(q))return '연애';
-  if(/돈|금전|재물|주식|투자|사업|매출|수익|손실|월급|부업|재테크/.test(q))return '금전';
-  if(/이직|직장|회사|취업|일|퇴사|상사|동료|면접|직업/.test(q))return '직장';
-  if(/인간관계|친구|가족|사람|모임|갈등/.test(q))return '인간관계';
-  if(style&&style.includes('금전'))return '금전';
-  if(style&&style.includes('직장'))return '직장';
-  if(style&&style.includes('재회'))return '재회';
-  if(style&&style.includes('연애'))return '연애';
-  return '종합';
+function detectTopics(q){
+  q=(q||'').replace(/\s+/g,' ');
+  const rules=[
+    ['재회',/재회|헤어|헤어짐|헤어진|전남|전 여친|전여친|전 남친|전남친|다시 만|다시 연락|이별|돌아올|붙잡|연락 올|연락이 올/],
+    ['연애',/속마음|그 사람|상대|남자|여자|연애|호감|썸|사랑|고백|결혼|남친|여친|배우자|남편|아내|짝사랑|만남/],
+    ['금전',/돈|금전|재물|주식|투자|사업|창업|앱|어플|서비스|매출|수익|손실|월급|부업|재테크|대박|성공할|잘될|잘 될|팔릴|판매|고객|장사|수입|계약|프리랜서|쇼핑몰|블로그 수익|광고 수익/],
+    ['직장',/이직|직장|회사|취업|일자리|일 |퇴사|상사|동료|면접|직업|커리어|출근|업무|승진|팀장|연봉/],
+    ['학업',/시험|합격|수능|공부|학업|자격증|학교|대학|면허|공인중개사|신학|전도사|목사/],
+    ['건강',/건강|몸|아프|통증|병|수술|회복|컨디션|잠|수면|스트레스|우울|불안|다이어트|운동/],
+    ['인간관계',/인간관계|친구|가족|사람|모임|갈등|오해|동료|부모|자식|아이|직원|손님|고객|관계/]
+  ];
+  const found=[];
+  for(const [name,rx] of rules){ if(rx.test(q)) found.push(name); }
+  // 재회는 연애 하위 질문이므로 둘 다 잡히면 재회를 우선하고 연애 중복은 제거합니다.
+  if(found.includes('재회')){
+    const idx=found.indexOf('연애'); if(idx>-1) found.splice(idx,1);
+  }
+  return found.length?found.slice(0,2):['종합'];
+}
+function detectTopic(q){return detectTopics(q)[0]||'종합'}
+function topicLabel(topics){
+  const map={'금전':'💰 금전운/사업운','연애':'❤️ 연애운','재회':'💔 재회운','직장':'💼 직장·이직','인간관계':'👥 인간관계','학업':'📚 학업·시험운','건강':'🌿 건강운','종합':'🌙 종합운'};
+  return (topics||['종합']).map(t=>map[t]||t).join(' + ');
+}
+function styleGuide(style){
+  if((style||'').includes('신점')) return '말은 돌려 하지 않고, 지금 보이는 흐름을 직관적으로 짚어드립니다.';
+  if((style||'').includes('현실')) return '감정보다 조건과 행동 기준을 중심으로 현실적인 조언을 드립니다.';
+  if((style||'').includes('직관')) return '카드가 주는 상징과 느낌을 부드럽게 풀어 직관적으로 해석합니다.';
+  return '겉으로 보이는 상황보다 마음의 흐름과 심리적인 이유를 중심으로 해석합니다.';
 }
 function cardLine(card, role){return `${role}의 ${card.name} ${card.rev?'역방향':'정방향'}은 ${card.meaning}을 보여줍니다.`}
 
@@ -919,15 +940,61 @@ function cleanupRemoteReadings(){
     rows.slice(10).forEach(r=>{ if(r&&r.id) fbDelete('/readings/'+state.userKey+'/'+r.id); });
   }).catch(()=>{});
 }
-function makeReading(q,cards,style){
-  const topic=detectTopic(q,style);const [a,b,c,d,e]=cards;
-  const intro=`질문: ${q}\n선택 카드: ${cards.map(x=>x.name+(x.rev?' 역':' 정')).join(' · ')}\n\n`;
+function makeReading(q,cards,style,topics){
+  topics=topics&&topics.length?topics:detectTopics(q);
+  const topic=topics[0]||'종합';const [a,b,c,d,e]=cards;
+  const intro=`질문: ${q}\n자동 분석 분야: ${topicLabel(topics)}\n리딩 스타일: ${style} - ${styleGuide(style)}\n선택 카드: ${cards.map(x=>x.name+(x.rev?' 역':' 정')).join(' · ')}\n\n`;
+  if(topics.length>1){return makeMultiTopicReading(q,cards,style,topics,intro);}
   if(topic==='금전')return intro+`[금전운 핵심]\n이번 달 금전운은 큰돈이 한 번에 들어오는 흐름보다는, 지출을 줄이고 돈의 흐름을 정리하면서 손실을 막는 쪽에 더 강하게 맞춰져 있습니다. ${cardLine(a,'첫 번째 카드')} 지금은 무리하게 벌려고 움직이기보다, 이미 나가고 있는 돈과 앞으로 나갈 돈을 점검해야 하는 시기입니다. 특히 충동적인 소비, 감정적인 투자, 남의 말만 듣고 들어가는 선택은 피하는 편이 좋습니다.\n\n[돈이 들어오는 흐름]\n${cardLine(b,'두 번째 카드')} 수입 자체가 완전히 막힌 흐름은 아닙니다. 다만 돈이 들어오더라도 바로 쌓인다기보다, 기존 지출이나 미뤄둔 비용으로 빠져나갈 가능성이 있습니다. 이번 달은 “많이 버는 달”이라기보다 “새는 돈을 막아야 남는 달”에 가깝습니다. 부업, 상담, 판매, 일거리처럼 내가 직접 움직여서 만드는 수입은 가능성이 있지만, 기다리기만 해서 돈이 들어오는 흐름은 약합니다.\n\n[주의할 지점]\n${cardLine(c,'세 번째 카드')} 이 카드는 금전운에서 계산 착오, 기대보다 늦어지는 입금, 계획보다 커지는 지출을 조심하라는 신호로 읽힙니다. 주식이나 투자를 보고 있다면 크게 한 번에 들어가기보다 분할, 관망, 손절 기준을 먼저 세우는 것이 안전합니다. 사업이나 판매 쪽이라면 광고비, 재료비, 플랫폼 수수료처럼 작게 보이지만 반복적으로 빠지는 돈을 반드시 확인해야 합니다.\n\n[가까운 흐름]\n${cardLine(d,'네 번째 카드')} 중순 이후로는 돈의 흐름이 조금씩 정리되는 모습이 있습니다. 다만 갑자기 큰 행운이 터진다기보다는, 내가 불필요한 지출을 줄이고 현실적인 선택을 했을 때 잔액이 지켜지는 구조입니다. 이번 달은 공격보다 방어가 우선입니다. 이미 진행 중인 일이 있다면 완전히 포기하기보다는 비용 대비 효율을 따져보고, 수익이 나는 부분만 남기는 식의 정리가 좋습니다.\n\n[조언]\n${cardLine(e,'마지막 카드')} 결론적으로 이번 달 금전운은 “돈을 크게 불리는 달”보다 “돈이 새는 구멍을 막고 다음 기회를 준비하는 달”입니다. 가장 좋은 전략은 첫째, 고정지출을 줄이는 것, 둘째, 투자나 구매는 하루 이상 시간을 두고 결정하는 것, 셋째, 작은 수입이라도 반복적으로 들어오는 구조를 만드는 것입니다. 이번 달에는 큰 욕심보다 안정적인 현금 흐름을 지키는 사람이 결국 유리합니다.`;
   if(topic==='직장')return intro+`[직장·이직운 핵심]\n이번 흐름은 당장 모든 것이 확 풀리는 운이라기보다, 지금 있는 자리에서 불편한 부분을 정확히 보고 다음 선택을 준비하는 운입니다. ${cardLine(a,'첫 번째 카드')} 현재 일의 방향은 감정적으로 지치기 쉽지만, 그 안에서 내가 무엇을 더 이상 감당하기 어려운지 선명해지는 시기입니다.\n\n[현재 상황]\n${cardLine(b,'두 번째 카드')} 회사나 일 문제에서는 주변 사람의 말보다 실제 조건을 봐야 합니다. 연봉, 근무시간, 업무량, 상사와의 관계, 장기 가능성을 하나씩 따져보면 답이 더 명확해집니다. 지금은 막연히 싫어서 움직이는 것보다, 더 나은 조건이 확인됐을 때 움직이는 것이 유리합니다.\n\n[주의할 점]\n${cardLine(c,'세 번째 카드')} 충동적인 퇴사나 감정적인 대응은 손해가 될 수 있습니다. 특히 말실수, 섣부른 선언, 준비 없는 이동은 피해야 합니다. 이직을 생각한다면 이력서 정리, 조건 비교, 면접 준비를 먼저 하고 움직이는 것이 맞습니다.\n\n[앞으로의 흐름]\n${cardLine(d,'네 번째 카드')} 가까운 시기에는 새로운 제안이나 변화의 신호가 들어올 수 있습니다. 다만 처음부터 완벽한 조건이라기보다 조정이 필요한 기회일 수 있습니다. 지금 하는 일에서 내가 가진 실무 능력과 장점을 정리하면 다음 기회를 잡기 쉬워집니다.\n\n[조언]\n${cardLine(e,'마지막 카드')} 결론적으로 직장운은 정체가 아니라 재정비입니다. 버틸 것과 정리할 것을 나눠야 하고, 움직인다면 준비된 이동이 좋습니다. 지금은 감정보다 조건표를 만들어 판단하세요. 그게 이번 운을 가장 현실적으로 활용하는 방법입니다.`;
   if(topic==='연애')return intro+`[연애운 핵심]\n이번 연애 흐름은 마음이 아예 없는 상태라기보다, 서로의 속도와 표현 방식이 맞지 않아 애매하게 느껴지는 흐름입니다. ${cardLine(a,'첫 번째 카드')} 상대가 있다면 겉으로 보이는 태도만으로 단정하기 어렵고, 아직은 관찰이 필요한 시기입니다.\n\n[상대와 분위기]\n${cardLine(b,'두 번째 카드')} 호감이나 관심의 가능성은 있지만, 확신을 주는 행동은 부족할 수 있습니다. 상대는 마음이 있어도 바로 표현하기보다 상황을 보고 움직이는 쪽에 가깝습니다. 그래서 질문자님이 너무 빨리 답을 확인하려 하면 오히려 관계가 부담스럽게 느껴질 수 있습니다.\n\n[막히는 부분]\n${cardLine(c,'세 번째 카드')} 이 카드는 자존심, 불안, 과거의 상처, 또는 타이밍 문제를 보여줍니다. 좋아하는 마음과 별개로 현실적인 거리감이 있을 수 있고, 말 한마디를 어떻게 꺼내야 할지 몰라 멈추는 모습도 있습니다.\n\n[가까운 흐름]\n${cardLine(d,'네 번째 카드')} 앞으로는 작은 대화나 반응을 통해 분위기가 조금씩 드러납니다. 큰 고백보다 자연스러운 연락, 가벼운 질문, 편안한 대화가 더 효과적입니다. 관계를 빠르게 결론내기보다 상대가 다시 다가올 수 있는 여지를 남기는 것이 좋습니다.\n\n[조언]\n${cardLine(e,'마지막 카드')} 결론적으로 연애운은 가능성이 있지만 서두르면 흐려질 수 있습니다. 지금은 상대의 말보다 행동의 반복성을 보세요. 한 번의 반응보다 꾸준한 관심이 진짜 신호입니다. 질문자님은 감정을 다 보여주기보다 여유 있게 분위기를 이끄는 편이 유리합니다.`;
   if(topic==='재회')return intro+`[재회운 핵심]\n재회운은 완전히 닫힌 흐름이라기보다, 감정은 남아 있어도 다시 만나기까지 현실적인 정리와 시간이 필요한 흐름입니다. ${cardLine(a,'첫 번째 카드')} 지금은 서로가 과거를 다르게 기억하고 있을 가능성이 큽니다.\n\n[상대의 상태]\n${cardLine(b,'두 번째 카드')} 상대는 아무 생각이 없는 것처럼 보여도 마음속에서는 좋았던 점과 힘들었던 점을 함께 떠올릴 수 있습니다. 다만 바로 돌아오겠다는 적극성보다는 조심스러움이 더 강합니다.\n\n[재회를 막는 부분]\n${cardLine(c,'세 번째 카드')} 가장 큰 변수는 감정의 문제가 아니라 같은 문제가 반복될까 하는 걱정입니다. 다시 연락이 되더라도 예전 방식으로 밀어붙이면 같은 갈등이 반복될 수 있습니다.\n\n[앞으로의 흐름]\n${cardLine(d,'네 번째 카드')} 가까운 시기에는 연락의 가능성이나 마음이 흔들리는 순간이 있을 수 있습니다. 하지만 재회는 한 번의 연락으로 결정되기보다, 대화가 이어지는지와 서로 태도가 달라졌는지에 따라 갈립니다.\n\n[조언]\n${cardLine(e,'마지막 카드')} 결론적으로 재회 가능성은 남아 있지만, 핵심은 속도 조절입니다. 먼저 사과나 설득보다 “예전과 다른 안정감”을 보여주는 것이 중요합니다. 상대를 붙잡으려는 말보다 편안하게 대화할 수 있는 분위기를 만드는 쪽이 더 유리합니다.`;
   if(topic==='인간관계')return intro+`[인간관계 핵심]\n이번 인간관계 흐름은 겉으로 드러난 말보다 속에 쌓인 감정과 오해를 정리해야 하는 운입니다. ${cardLine(a,'첫 번째 카드')} 지금 관계는 한쪽만 잘한다고 풀리는 구조가 아니라 서로의 입장 차이를 인정해야 풀립니다.\n\n[현재 분위기]\n${cardLine(b,'두 번째 카드')} 상대나 주변 사람들은 질문자님의 의도를 완전히 오해하고 있을 수 있습니다. 반대로 질문자님도 상대의 진짜 속마음을 일부만 보고 판단했을 가능성이 있습니다.\n\n[주의할 점]\n${cardLine(c,'세 번째 카드')} 이 시기에는 말이 길어질수록 오해가 커질 수 있습니다. 감정이 올라온 상태에서 설명하거나 따지는 것은 좋지 않습니다. 중요한 말은 짧게, 사실 중심으로 하는 것이 안전합니다.\n\n[앞으로의 흐름]\n${cardLine(d,'네 번째 카드')} 시간이 지나면서 불편했던 분위기는 조금씩 정리될 수 있습니다. 다만 모두와 잘 지내려 하기보다, 계속 갈 사람과 거리를 둬야 할 사람을 구분하는 것이 필요합니다.\n\n[조언]\n${cardLine(e,'마지막 카드')} 결론적으로 이번 인간관계운은 정리와 선 긋기입니다. 억지로 맞추기보다 나를 소모시키는 관계는 거리를 두고, 진심이 통하는 사람에게 에너지를 쓰는 것이 좋습니다.`;
+  if(topic==='학업')return intro+`[학업·시험운 핵심]
+이번 흐름은 단순히 운이 좋고 나쁘다기보다, 준비 방식과 집중력이 결과를 크게 좌우하는 운입니다. ${cardLine(a,'첫 번째 카드')} 현재는 마음이 흔들리기 쉽지만, 기준을 잡으면 다시 페이스를 회복할 수 있습니다.
+
+[현재 상태]
+${cardLine(b,'두 번째 카드')} 지금은 공부량 자체보다 무엇을 먼저 정리해야 하는지가 중요합니다. 부족한 부분을 막연히 걱정하기보다 과목, 일정, 반복 문제를 나눠서 보는 것이 좋습니다.
+
+[주의할 점]
+${cardLine(c,'세 번째 카드')} 조급함 때문에 계획을 자주 바꾸면 흐름이 흐트러질 수 있습니다. 특히 남의 속도와 비교하는 것은 도움이 되지 않습니다.
+
+[가까운 흐름]
+${cardLine(d,'네 번째 카드')} 앞으로는 작은 성취가 쌓이며 자신감을 회복할 수 있습니다. 다만 결과를 빨리 확인하려 하기보다 반복 루틴을 유지하는 것이 더 중요합니다.
+
+[조언]
+${cardLine(e,'마지막 카드')} 결론적으로 학업운은 가능성이 있지만, 감정 기복 관리가 핵심입니다. 오늘 해야 할 분량을 작게 쪼개고, 틀린 문제를 다시 보는 방식이 가장 유리합니다.`;
+  if(topic==='건강')return intro+`[건강운 핵심]
+이번 건강 흐름은 몸이 보내는 신호를 가볍게 넘기지 말라는 메시지가 강합니다. ${cardLine(a,'첫 번째 카드')} 지금은 무리해서 버티는 것보다 회복 리듬을 먼저 잡아야 합니다.
+
+[현재 상태]
+${cardLine(b,'두 번째 카드')} 컨디션은 마음의 긴장, 수면, 피로 누적과 연결되어 있을 가능성이 있습니다. 몸이 예민하게 반응한다면 생활 패턴을 함께 살펴야 합니다.
+
+[주의할 점]
+${cardLine(c,'세 번째 카드')} 증상을 참고 넘기거나 자가 판단만으로 미루는 것은 좋지 않습니다. 불편함이 계속되면 전문가 확인을 받는 것이 안전합니다.
+
+[가까운 흐름]
+${cardLine(d,'네 번째 카드')} 휴식과 관리가 들어가면 조금씩 안정되는 흐름입니다. 다만 한 번에 좋아지기보다 꾸준한 관리가 필요합니다.
+
+[조언]
+${cardLine(e,'마지막 카드')} 결론적으로 건강운은 무리보다 회복입니다. 잠, 식사, 스트레스, 통증 신호를 기록하고 몸을 덜 몰아붙이는 방향이 좋습니다.`;
   return intro+`[종합운 핵심]\n이번 흐름은 한 가지 답으로 단정하기보다, 마음과 현실을 동시에 정리해야 하는 운입니다. ${cardLine(a,'첫 번째 카드')} 현재는 선택 앞에서 생각이 많아지는 시기이며, 서두르기보다 기준을 세워야 합니다.\n\n[현재 상황]\n${cardLine(b,'두 번째 카드')} 가능성은 있지만 아직 완전히 열린 흐름은 아닙니다. 질문자님이 무엇을 우선순위로 두느냐에 따라 결과가 달라질 수 있습니다.\n\n[주의할 점]\n${cardLine(c,'세 번째 카드')} 지금은 감정적인 판단, 즉흥적인 결정, 남의 말에 휘둘리는 선택을 조심해야 합니다.\n\n[가까운 흐름]\n${cardLine(d,'네 번째 카드')} 가까운 시기에는 상황이 조금씩 정리되고 방향이 보입니다. 다만 큰 변화보다 작은 신호가 먼저 들어올 가능성이 큽니다.\n\n[조언]\n${cardLine(e,'마지막 카드')} 결론적으로 지금은 무리하게 답을 만들기보다, 현실적인 조건과 내 마음의 기준을 함께 봐야 합니다. 그 기준을 세우면 다음 선택은 훨씬 쉬워집니다.`;
+}
+
+function makeMultiTopicReading(q,cards,style,topics,intro){
+  const [a,b,c,d,e]=cards;
+  const sections=topics.map((t,idx)=>{
+    const focusCard=cards[idx]||a;
+    if(t==='금전') return `[${idx+1}. ${topicLabel([t])}]\n질문 안에는 수익성, 성공 가능성, 돈의 흐름을 확인하려는 의도가 보입니다. ${cardLine(focusCard,'핵심 카드')} 이 흐름은 무작정 대박을 기대하기보다, 수요가 있는지와 비용 대비 남는 구조가 있는지를 봐야 합니다. 지금은 홍보, 유입, 결제 동선처럼 실제 돈으로 연결되는 지점이 중요합니다.`;
+    if(t==='직장') return `[${idx+1}. ${topicLabel([t])}]\n직장이나 일의 문제는 감정적인 만족보다 조건과 지속 가능성이 중요합니다. ${cardLine(focusCard,'핵심 카드')} 당장 움직이기보다 준비 상태, 역할, 보상 구조를 함께 보는 것이 좋습니다.`;
+    if(t==='연애') return `[${idx+1}. ${topicLabel([t])}]\n연애 문제는 상대의 말보다 반복되는 행동과 관계의 속도를 보는 것이 중요합니다. ${cardLine(focusCard,'핵심 카드')} 마음은 있어도 표현 방식이 다를 수 있으니 서두른 결론은 피하는 편이 좋습니다.`;
+    if(t==='재회') return `[${idx+1}. ${topicLabel([t])}]\n재회 문제는 감정만 남아 있는지, 실제로 다시 맞출 수 있는지가 핵심입니다. ${cardLine(focusCard,'핵심 카드')} 연락 가능성과 관계 회복 가능성을 따로 봐야 합니다.`;
+    if(t==='인간관계') return `[${idx+1}. ${topicLabel([t])}]\n관계 문제는 오해와 거리 조절이 핵심입니다. ${cardLine(focusCard,'핵심 카드')} 모두에게 맞추려 하기보다 계속 갈 관계와 선을 그을 관계를 나누는 것이 좋습니다.`;
+    if(t==='학업') return `[${idx+1}. ${topicLabel([t])}]\n학업이나 시험 문제는 운보다 루틴과 반복이 결과를 좌우합니다. ${cardLine(focusCard,'핵심 카드')} 지금은 불안감을 줄이고 약한 부분을 구체적으로 보완해야 합니다.`;
+    if(t==='건강') return `[${idx+1}. ${topicLabel([t])}]\n건강 문제는 몸이 보내는 신호를 무시하지 않는 것이 우선입니다. ${cardLine(focusCard,'핵심 카드')} 무리보다 회복 리듬을 잡는 것이 좋고, 불편함이 지속되면 전문가 확인이 필요합니다.`;
+    return `[${idx+1}. ${topicLabel([t])}]\n전체 흐름을 보면 지금은 마음과 현실의 기준을 함께 정리해야 합니다. ${cardLine(focusCard,'핵심 카드')} 작은 신호를 보고 차분히 선택하는 것이 좋습니다.`;
+  }).join('\n\n');
+  return intro+`[복합 질문 자동 분류]\n이 질문은 한 가지 분야만이 아니라 ${topicLabel(topics)} 흐름이 함께 들어 있는 질문으로 보입니다. 그래서 하나로 뭉뚱그려 답하지 않고, 분야별로 나누어 리딩합니다.\n\n${sections}\n\n[종합 결론]\n이번 질문의 핵심은 감정적으로 급하게 결론을 내리는 것이 아니라, 가장 중요한 분야부터 순서를 정하는 것입니다. ${styleGuide(style)} 선택한 5장의 카드는 질문자님이 이미 느끼고 있던 불안과 가능성을 함께 보여줍니다. 지금은 한 번에 모든 답을 얻으려 하기보다, 먼저 현실적으로 바로 손댈 수 있는 부분부터 정리하는 것이 가장 유리합니다.`;
 }
 function historyCategory(h){
   const topic=detectTopic(h?.q||'', h?.style||'');
