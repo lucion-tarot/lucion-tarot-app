@@ -1803,6 +1803,203 @@ function toggleVoiceQuestion(){
   };
 })();
 
+
+/* ===== V11.32: 회원 관리 구조 안정화 - 로그인 즉시 무료회원 등록 / 무료·충전회원 분리 ===== */
+const FREE_MEMBER_EXPIRE_MS = 30*24*60*60*1000;
+function normNameForMember(name){return String(name||'').trim().replace(/\s+/g,' ');}
+function isPaidMember(u){return Number(u?.issued||0)>0 || Number(u?.credits||0)>0 || u?.memberType==='paid' || u?.isPaid===true;}
+function memberBase(name, phone, old={}){
+  const clean=cleanPhone(phone||old.phone||'');
+  const n=normNameForMember(name||old.name||old.depositor||'');
+  const now=Date.now();
+  const issued=Number(old.issued||0);
+  const credits=Number(old.credits||0);
+  const paid=issued>0 || credits>0 || old.memberType==='paid' || old.isPaid===true;
+  return {
+    ...old,
+    name:n,
+    phone:clean,
+    maskedName:maskName(n),
+    maskedPhone:maskPhone(clean),
+    freeNameKey:freeNameKey(n),
+    credits,
+    issued,
+    freeUsed:!!old.freeUsed,
+    memberType: paid ? 'paid' : 'free',
+    isPaid: paid,
+    createdAt: Number(old.createdAt||now),
+    loginAt: now,
+    updatedAt: now
+  };
+}
+async function saveMemberRecord(name, phone, patch={}){
+  const clean=cleanPhone(phone);
+  if(!clean) return null;
+  const old=await fbGet('/users/'+clean)||{};
+  const rec=memberBase(name, clean, {...old,...patch});
+  await fbPatch('/users/'+clean, rec);
+  return rec;
+}
+async function cleanupExpiredFreeMembers(users){
+  const now=Date.now();
+  const deleted=[];
+  for(const [key,u] of Object.entries(users||{})){
+    const phone=cleanPhone(u.phone||key);
+    const name=normNameForMember(u.name||'');
+    if(name===ADMIN_OWNER_NAME && phone===ADMIN_OWNER_PHONE) continue;
+    if(isPaidMember(u)) continue;
+    const baseTime=Number(u.createdAt||u.loginAt||u.updatedAt||now);
+    if(now-baseTime>FREE_MEMBER_EXPIRE_MS){
+      try{await fbDelete('/users/'+key); deleted.push(key);}catch(e){}
+    }
+  }
+  return deleted;
+}
+
+// 로그인하면 충전 전이라도 반드시 무료회원 목록에 즉시 등록합니다.
+loginUser = async function(){
+  const name=normNameForMember(document.getElementById('loginName').value);
+  const phone=cleanPhone(document.getElementById('loginPhone').value);
+  if(!name)return alert('사용자 이름을 입력해주세요.');
+  if(phone.length<8)return alert('휴대폰 번호를 정확히 입력해주세요.');
+
+  const isOwnerLogin=(name===ADMIN_OWNER_NAME && phone===ADMIN_OWNER_PHONE);
+  if(!serviceEnabled && !isOwnerLogin){
+    alert('현재 서비스 점검 중입니다.');
+    document.getElementById('loginName').value='';
+    document.getElementById('loginPhone').value='';
+    return;
+  }
+
+  state.name=name; state.phone=phone; state.userKey=phone;
+  let old=await fbGet('/users/'+phone)||{};
+  const nameFreeUsed=await getNameFreeUsed(name);
+  const merged=memberBase(name, phone, {
+    ...old,
+    freeUsed: !!old.freeUsed || !!nameFreeUsed,
+    credits:Number(old.credits||0),
+    issued:Number(old.issued||0)
+  });
+  await fbPatch('/users/'+phone, merged);
+  state.credits=Number(merged.credits||0);
+  state.freeUsed=!!merged.freeUsed;
+  state.issued=Number(merged.issued||0);
+  saveLocal();
+  await refreshUser();
+  applyServiceStatusUI();
+  alert(`로그인되었습니다. 현재 질문권 ${state.credits}개입니다.`);
+};
+
+syncUser = async function(){
+  if(!state.phone)return;
+  state.phone=cleanPhone(state.phone); state.userKey=state.phone;
+  const old=await fbGet('/users/'+state.userKey)||{};
+  const rec=memberBase(state.name, state.phone, {
+    ...old,
+    credits:Number(state.credits||0),
+    issued:Number(state.issued||0),
+    freeUsed:!!state.freeUsed
+  });
+  await fbPatch('/users/'+state.userKey,rec);
+};
+
+migrateUserToPhoneKey = async function(name,phone){
+  const clean=cleanPhone(phone); if(!clean)return null;
+  const exact=await fbGet('/users/'+clean)||{};
+  const nameFreeUsed=await getNameFreeUsed(name||exact.name||'');
+  const rec=memberBase(name||exact.name||'', clean, {...exact, freeUsed:!!exact.freeUsed||!!nameFreeUsed});
+  await fbPatch('/users/'+clean,rec);
+  return rec;
+};
+
+refreshUser = async function(){
+  if(!state.phone&&!state.userKey)return;
+  const key=cleanPhone(state.phone||state.userKey);
+  state.userKey=key; state.phone=key;
+  let u=await fbGet('/users/'+key);
+  if(!u){u=await migrateUserToPhoneKey(state.name,key);}
+  if(u){
+    const name=normNameForMember(u.name||state.name);
+    const nameFreeUsed=await getNameFreeUsed(name);
+    state.name=name;
+    state.phone=cleanPhone(u.phone||key);
+    state.userKey=state.phone;
+    state.credits=Number(u.credits||0);
+    state.issued=Number(u.issued||0);
+    state.freeUsed=!!u.freeUsed||!!nameFreeUsed;
+    if(nameFreeUsed&&!u.freeUsed){await syncUser();}
+  }
+  const h=await fbGet('/readings/'+state.userKey);
+  if(h){state.history=Object.values(h).sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,10);cleanupRemoteReadings();}
+  trimHistoryToTen();saveLocal();renderHistory();
+};
+
+ensureChargeUser = async function(name,phone){
+  const n=normNameForMember(name), p=cleanPhone(phone);
+  if(!n||!p)return '';
+  state.name=n; state.phone=p; state.userKey=p;
+  const old=await fbGet('/users/'+p)||{};
+  const rec=memberBase(n,p,old);
+  await fbPatch('/users/'+p,rec);
+  state.credits=Number(rec.credits||0); state.issued=Number(rec.issued||0); state.freeUsed=!!rec.freeUsed;
+  saveLocal();
+  return state.userKey;
+};
+
+manualGive = async function(key,credits,silent=false){
+  key=cleanPhone(key); if(!key)return alert('회원 휴대폰 번호를 찾을 수 없습니다.');
+  const u=await fbGet('/users/'+key)||{phone:key,credits:0,issued:0,createdAt:Date.now()};
+  const newCredits=Number(u.credits||0)+Number(credits);
+  const issued=Number(u.issued||0)+Number(credits);
+  const rec=memberBase(u.name||'', key, {...u, credits:newCredits, issued, memberType:'paid', isPaid:true, paidAt:u.paidAt||Date.now(), lastChargeAt:Date.now()});
+  await fbPatch('/users/'+key,rec);
+  if(!silent)alert('질문권 지급 완료');
+  loadAdmin(); if(key===state.userKey)refreshUser();
+};
+
+async function deleteMember(key){
+  key=cleanPhone(key); if(!key)return;
+  const u=await fbGet('/users/'+key)||{};
+  const label=(u.name||'회원')+' / '+maskPhone(key);
+  if(!confirm(label+' 회원 정보를 삭제할까요?\n삭제하면 관리자 목록에서 사라집니다.'))return;
+  await fbDelete('/users/'+key);
+  // 리딩 기록은 개인정보 관리상 같이 삭제합니다.
+  try{await fbDelete('/readings/'+key);}catch(e){}
+  if(key===state.userKey)logoutUser();
+  await loadAdmin();
+}
+
+loadAdmin = async function(){
+  loadApiUsage();
+  let users=await fbGet('/users')||{};
+  const deleted=await cleanupExpiredFreeMembers(users);
+  if(deleted.length) users=await fbGet('/users')||{};
+  const box=document.getElementById('adminList'); if(!box)return;
+  const rows=[];
+  Object.entries(users).forEach(([k,u])=>{
+    const phone=cleanPhone(u.phone||k);
+    const name=normNameForMember(u.name||u.depositor||'');
+    if(!phone||!name)return;
+    rows.push({
+      key:phone,name,phone,
+      maskedName:maskName(name),maskedPhone:maskPhone(phone),
+      credits:Number(u.credits||0),issued:Number(u.issued||0),freeUsed:!!u.freeUsed,
+      createdAt:Number(u.createdAt||0),updatedAt:Number(u.updatedAt||0),
+      memberType:isPaidMember(u)?'paid':'free'
+    });
+  });
+  rows.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const paid=rows.filter(u=>u.memberType==='paid');
+  const free=rows.filter(u=>u.memberType!=='paid');
+  const renderPaid=(u)=>`<div class="admin-row"><b>${u.maskedName} / ${u.maskedPhone}</b><p>상태: 충전 회원 · 누적 지급 ${u.issued}개 · 현재 ${u.credits}개 남음</p><div class="row"><button class="btn" onclick="manualGive('${u.key}',5)">+5개 지급</button><button class="btn" onclick="manualGive('${u.key}',10)">+10개 지급</button><button class="btn" onclick="manualGive('${u.key}',20)">+20개 지급</button></div><button class="btn red" style="margin-top:8px" onclick="deleteMember('${u.key}')">회원 삭제</button></div>`;
+  const renderFree=(u)=>{const status=u.freeUsed?'무료 1회 사용 완료':'무료 1회 가능';return `<div class="admin-row"><b>${u.maskedName} / ${u.maskedPhone}</b><p>상태: 무료 회원 · ${status} · 30일 후 자동 정리 대상</p><div class="row"><button class="btn" onclick="manualGive('${u.key}',5)">+5개 지급</button><button class="btn" onclick="manualGive('${u.key}',10)">+10개 지급</button><button class="btn" onclick="manualGive('${u.key}',20)">+20개 지급</button></div><button class="btn red" style="margin-top:8px" onclick="deleteMember('${u.key}')">회원 삭제</button></div>`};
+  let html=`<div class="card"><h3>충전 회원 관리</h3><p class="muted">입금 확인 후 질문권을 지급한 회원입니다. 이름과 휴대폰 번호가 하나의 회원 정보로 함께 저장됩니다.</p></div>`;
+  html+=paid.length?paid.map(renderPaid).join(''):'<div class="card"><p class="muted">아직 충전 회원이 없습니다.</p></div>';
+  html+=`<div class="card"><h3>무료 회원 관리</h3><p class="muted">로그인만 해도 즉시 등록됩니다. 충전하면 위의 충전 회원으로 이동하고, 충전하지 않은 무료 회원은 30일 후 자동 정리됩니다.</p></div>`;
+  html+=free.length?free.map(renderFree).join(''):'<div class="card"><p class="muted">현재 무료 회원 기록이 없습니다.</p></div>';
+  box.innerHTML=html;
+};
+
 loadLocal();
 setInterval(()=>{if(state.userKey)refreshUser();},8000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.userKey)refreshUser();});history.replaceState({screen:'home'},'', '#home');

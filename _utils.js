@@ -46,17 +46,24 @@ function send(res,status,data){
   res.status(status).send(JSON.stringify(data));
 }
 function bad(res,message='잘못된 요청입니다.',status=400){ send(res,status,{ok:false,message}); }
+function cleanName(name=''){ return String(name||'').trim().replace(/\s+/g,' '); }
+function freeNameKey(name=''){ return encodeURIComponent(cleanName(name)).replace(/\./g,'%2E'); }
+function isPaidMember(u={}){ return Number(u.issued||0)>0 || Number(u.credits||0)>0 || u.memberType==='paid' || u.isPaid===true; }
 async function getOrCreateUser(name,phone){
   const p=cleanPhone(phone);
   if(!p) throw new Error('PHONE_REQUIRED');
+  const n=cleanName(name);
   let u=await dbGet('/users/'+p);
+  const now=Date.now();
+  const usedByName=await dbGet('/freeNames/'+freeNameKey(n));
   if(!u){
-    u={name:String(name||'').trim(), phone:p, maskedName:maskName(name), maskedPhone:maskPhone(p), credits:0, issued:0, freeUsed:false, createdAt:Date.now(), updatedAt:Date.now()};
+    u={name:n, phone:p, maskedName:maskName(n), maskedPhone:maskPhone(p), freeNameKey:freeNameKey(n), credits:0, issued:0, freeUsed:!!(usedByName&&usedByName.freeUsed), memberType:'free', isPaid:false, createdAt:now, loginAt:now, updatedAt:now};
     await dbPut('/users/'+p,u);
   }else{
-    u={...u, name:String(name||u.name||'').trim(), phone:p, maskedName:maskName(name||u.name), maskedPhone:maskPhone(p), credits:Number(u.credits||0), issued:Number(u.issued||0), freeUsed:!!u.freeUsed, updatedAt:Date.now()};
-    await dbPatch('/users/'+p,{name:u.name,phone:p,maskedName:u.maskedName,maskedPhone:u.maskedPhone,updatedAt:u.updatedAt});
+    const paid=isPaidMember(u);
+    u={...u, name:n||u.name||'', phone:p, maskedName:maskName(n||u.name), maskedPhone:maskPhone(p), freeNameKey:freeNameKey(n||u.name), credits:Number(u.credits||0), issued:Number(u.issued||0), freeUsed:!!u.freeUsed||!!(usedByName&&usedByName.freeUsed), memberType:paid?'paid':'free', isPaid:paid, createdAt:Number(u.createdAt||now), loginAt:now, updatedAt:now};
+    await dbPatch('/users/'+p,u);
   }
   return u;
 }
-module.exports={cleanPhone,maskName,maskPhone,dbGet,dbPut,dbPatch,dbDelete,readBody,send,bad,getOrCreateUser};
+module.exports={cleanPhone,maskName,maskPhone,cleanName,freeNameKey,isPaidMember,dbGet,dbPut,dbPatch,dbDelete,readBody,send,bad,getOrCreateUser};
